@@ -130,6 +130,7 @@ def get_parser():
 def main(opts=None):
     parser = get_parser()
     args = parser.parse_args(opts)
+    print("Memory info before loading model:", GetMemory())
 
     try:
         model = get_model_from_args(args)
