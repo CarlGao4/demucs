@@ -7,6 +7,7 @@
 import argparse
 import sys
 from pathlib import Path
+import psutil
 import subprocess
 
 from dora.log import fatal
@@ -48,6 +49,10 @@ def load_track(track, audio_channels, samplerate):
             print(f"When trying to load using {backend}, got the following error: {error}")
         sys.exit(1)
     return wav
+
+
+def GetMemory():
+    return repr(psutil.Process().memory_full_info())
 
 
 def get_parser():
@@ -130,6 +135,7 @@ def main(opts=None):
         model = get_model_from_args(args)
     except ModelLoadingError as error:
         fatal(error.args[0])
+    print("Memory info after loading model:", GetMemory())
 
     max_allowed_segment = float('inf')
     if isinstance(model, HTDemucs):
@@ -163,12 +169,14 @@ def main(opts=None):
             continue
         print(f"Separating track {track}")
         wav = load_track(track, model.audio_channels, model.samplerate)
+        print("Memory info after loading track:", GetMemory())
 
         ref = wav.mean(0)
         wav = (wav - ref.mean()) / ref.std()
         sources = apply_model(model, wav[None], device=args.device, shifts=args.shifts,
                               split=args.split, overlap=args.overlap, progress=True,
                               num_workers=args.jobs, segment=args.segment)[0]
+        print("Memory info after separation:", GetMemory())
         sources = sources * ref.std() + ref.mean()
 
         if args.mp3:
@@ -191,6 +199,7 @@ def main(opts=None):
                                                   stem=name, ext=ext)
                 stem.parent.mkdir(parents=True, exist_ok=True)
                 save_audio(source, str(stem), **kwargs)
+                print(f"Memory info after saving {name}:", GetMemory())
         else:
             sources = list(sources)
             stem = out / args.filename.format(track=track.name.rsplit(".", 1)[0],

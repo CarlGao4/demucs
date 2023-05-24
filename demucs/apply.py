@@ -8,6 +8,7 @@ Code to apply a model to a mix. It will handle chunking with overlaps and
 inteprolation between chunks, as well as the "shift trick".
 """
 from concurrent.futures import ThreadPoolExecutor
+import psutil
 import random
 import typing as tp
 
@@ -22,6 +23,10 @@ from .htdemucs import HTDemucs
 from .utils import center_trim, DummyPoolExecutor
 
 Model = tp.Union[Demucs, HDemucs, HTDemucs]
+
+
+def GetMemory():
+    return repr(psutil.Process().memory_full_info())
 
 
 class BagOfModels(nn.Module):
@@ -244,10 +249,11 @@ def apply_model(model: tp.Union[BagOfModels, Model],
             future = pool.submit(apply_model, model, chunk, **kwargs)
             futures.append((future, offset))
             offset += segment_length
-        if progress:
-            futures = tqdm.tqdm(futures, unit_scale=scale, ncols=120, unit='seconds')
+        # if progress:
+        #     futures = tqdm.tqdm(futures, unit_scale=scale, ncols=120, unit='seconds')
         for future, offset in futures:
             chunk_out = future.result()
+            print(f"Memory info after separating offset {offset} out of {scale}:", GetMemory())
             chunk_length = chunk_out.shape[-1]
             out[..., offset:offset + segment_length] += (
                 weight[:chunk_length] * chunk_out).to(mix.device)
