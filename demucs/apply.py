@@ -253,7 +253,7 @@ def apply_model(model: tp.Union[BagOfModels, Model],
         #     futures = tqdm.tqdm(futures, unit_scale=scale, ncols=120, unit='seconds')
         for future, offset in futures:
             chunk_out = future.result()
-            print(f"Memory info after separating offset {offset} out of {scale}:", GetMemory())
+            print(f"Memory info after separating offset {offset} out of {len(futures)}:", GetMemory())
             chunk_length = chunk_out.shape[-1]
             out[..., offset:offset + segment_length] += (
                 weight[:chunk_length] * chunk_out).to(mix.device)

@@ -130,13 +130,13 @@ def get_parser():
 def main(opts=None):
     parser = get_parser()
     args = parser.parse_args(opts)
-    print("Memory info before loading model:", GetMemory())
+    input("Memory info before loading model:", GetMemory())
 
     try:
         model = get_model_from_args(args)
     except ModelLoadingError as error:
         fatal(error.args[0])
-    print("Memory info after loading model:", GetMemory())
+    input("Memory info after loading model:", GetMemory())
 
     max_allowed_segment = float('inf')
     if isinstance(model, HTDemucs):
@@ -170,14 +170,14 @@ def main(opts=None):
             continue
         print(f"Separating track {track}")
         wav = load_track(track, model.audio_channels, model.samplerate)
-        print("Memory info after loading track:", GetMemory())
+        input("Memory info after loading track:", GetMemory())
 
         ref = wav.mean(0)
         wav = (wav - ref.mean()) / ref.std()
         sources = apply_model(model, wav[None], device=args.device, shifts=args.shifts,
                               split=args.split, overlap=args.overlap, progress=True,
                               num_workers=args.jobs, segment=args.segment)[0]
-        print("Memory info after separation:", GetMemory())
+        input("Memory info after separation:", GetMemory())
         sources = sources * ref.std() + ref.mean()
 
         if args.mp3:
@@ -200,7 +200,7 @@ def main(opts=None):
                                                   stem=name, ext=ext)
                 stem.parent.mkdir(parents=True, exist_ok=True)
                 save_audio(source, str(stem), **kwargs)
-                print(f"Memory info after saving {name}:", GetMemory())
+                input(f"Memory info after saving {name}:", GetMemory())
         else:
             sources = list(sources)
             stem = out / args.filename.format(track=track.name.rsplit(".", 1)[0],
