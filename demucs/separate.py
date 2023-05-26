@@ -51,8 +51,14 @@ def load_track(track, audio_channels, samplerate):
     return wav
 
 
-def GetMemory():
-    return repr(psutil.Process().memory_full_info())
+def PrintMemory(prompt=""):
+    import traceback
+    from pathlib import Path
+    called = traceback.extract_stack()[-2]
+    if prompt:
+        prompt += ": "
+    prompt = "(File %s line %d) " % (Path(called.filename).name, called.lineno) + prompt
+    print(prompt + repr(psutil.Process().memory_full_info()))
 
 
 def get_parser():
@@ -130,13 +136,13 @@ def get_parser():
 def main(opts=None):
     parser = get_parser()
     args = parser.parse_args(opts)
-    input("Memory info before loading model: " + GetMemory())
+    PrintMemory("Memory info before loading model")
 
     try:
         model = get_model_from_args(args)
     except ModelLoadingError as error:
         fatal(error.args[0])
-    input("Memory info after loading model: " + GetMemory())
+    PrintMemory("Memory info after loading model")
 
     max_allowed_segment = float('inf')
     if isinstance(model, HTDemucs):
@@ -170,14 +176,14 @@ def main(opts=None):
             continue
         print(f"Separating track {track}")
         wav = load_track(track, model.audio_channels, model.samplerate)
-        input("Memory info after loading track: " + GetMemory())
+        PrintMemory("Memory info after loading track")
 
         ref = wav.mean(0)
         wav = (wav - ref.mean()) / ref.std()
         sources = apply_model(model, wav[None], device=args.device, shifts=args.shifts,
                               split=args.split, overlap=args.overlap, progress=True,
                               num_workers=args.jobs, segment=args.segment)[0]
-        input("Memory info after separation: " + GetMemory())
+        PrintMemory("Memory info after separation")
         sources = sources * ref.std() + ref.mean()
 
         if args.mp3:
@@ -194,13 +200,15 @@ def main(opts=None):
             'bits_per_sample': 24 if args.int24 else 16,
         }
         if args.stem is None:
-            for source, name in zip(sources, model.sources):
+            zipped = zip(sources, model.sources)
+            PrintMemory("Memory info after zipping sources")
+            for source, name in zipped:
                 stem = out / args.filename.format(track=track.name.rsplit(".", 1)[0],
                                                   trackext=track.name.rsplit(".", 1)[-1],
                                                   stem=name, ext=ext)
                 stem.parent.mkdir(parents=True, exist_ok=True)
                 save_audio(source, str(stem), **kwargs)
-                input(f"Memory info after saving {name}: " + GetMemory())
+                PrintMemory(f"Memory info after saving {name}")
         else:
             sources = list(sources)
             stem = out / args.filename.format(track=track.name.rsplit(".", 1)[0],

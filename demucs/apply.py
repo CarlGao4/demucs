@@ -25,8 +25,14 @@ from .utils import center_trim, DummyPoolExecutor
 Model = tp.Union[Demucs, HDemucs, HTDemucs]
 
 
-def GetMemory():
-    return repr(psutil.Process().memory_full_info())
+def PrintMemory(prompt=""):
+    import traceback
+    from pathlib import Path
+    called = traceback.extract_stack()[-2]
+    if prompt:
+        prompt += ": "
+    prompt = "(File %s line %d) " % (Path(called.filename).name, called.lineno) + prompt
+    print(prompt + repr(psutil.Process().memory_full_info()))
 
 
 class BagOfModels(nn.Module):
@@ -193,19 +199,25 @@ def apply_model(model: tp.Union[BagOfModels, Model],
 
             out = apply_model(sub_model, mix, **kwargs)
             sub_model.to(original_model_device)
+            PrintMemory()
             for k, inst_weight in enumerate(model_weights):
                 out[:, k, :, :] *= inst_weight
                 totals[k] += inst_weight
             estimates += out
+            PrintMemory()
             del out
+            PrintMemory()
 
         assert isinstance(estimates, th.Tensor)
         for k in range(estimates.shape[1]):
             estimates[:, k, :, :] /= totals[k]
+        PrintMemory()
         return estimates
 
     model.to(device)
     model.eval()
+    if split:
+        PrintMemory("Memory info after loading memory to device")
     assert transition_power >= 1, "transition_power < 1 leads to weird behavior."
     batch, channels, length = mix.shape
     if shifts:
@@ -253,7 +265,7 @@ def apply_model(model: tp.Union[BagOfModels, Model],
         #     futures = tqdm.tqdm(futures, unit_scale=scale, ncols=120, unit='seconds')
         for future, offset in futures:
             chunk_out = future.result()
-            print(f"Memory info after separating offset {offset / model.samplerate} out of {len(futures) * scale}:", GetMemory())
+            PrintMemory(f"Memory info after separating offset {offset / model.samplerate} out of {len(futures) * scale}")
             chunk_length = chunk_out.shape[-1]
             out[..., offset:offset + segment_length] += (
                 weight[:chunk_length] * chunk_out).to(mix.device)
