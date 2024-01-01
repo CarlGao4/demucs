@@ -22,7 +22,7 @@ See the end of this module (if __name__ == "__main__")
 
 import subprocess
 
-import audio_legacy
+from . import audio_legacy
 import torch as th
 import torchaudio as ta
 
